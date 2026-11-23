@@ -4,36 +4,34 @@
 import gleam/int
 import gleam/list
 
-// ── localStorage (data_ffi.mjs) ───────────────────────────────────────────────
+// ── localStorage ───────────────────────────────────────
 
-/// The string stored in localStorage under key, or an Error if there isn't one.
+/// Read a value from localStorage.
 @external(javascript, "./data_ffi.mjs", "storageGet")
 pub fn storage_get(key: String) -> Result(String, Nil)
 
-/// Store value in localStorage under key, replacing anything already there.
-/// If that isn't possible, this logs the reason to the browser console.
+/// Save a value to localStorage.
 @external(javascript, "./data_ffi.mjs", "storageSet")
 pub fn storage_set(key: String, value: String) -> Nil
 
-// ── The new-drawing prompt (data_ffi.mjs) ─────────────────────────────────────
+// ── Drawing Name Prompt ────────────────────────────────
 
-/// Prompt the user to name a new drawing; "" (empty string) means they
-/// cancelled or left it blank.
+/// Ask the user for a new drawing name.
 @external(javascript, "./data_ffi.mjs", "promptDrawingName")
 pub fn prompt_drawing_name() -> String
 
-// ── Drawing Library ──────────────────────────────────────────────────────────
+// ── Drawing Library ────────────────────────────────────
 
 const prefix = "animator.library."
 
-// Save the number of drawings and their contents.
+// Save all drawings to localStorage.
 pub fn save_drawings(drawings: List(#(String, String))) -> Nil {
   storage_set(prefix <> "count", int.to_string(list.length(drawings)))
 
   save_entries(drawings, 0)
 }
 
-// Save each drawing separately.
+// Save the name and source code of each drawing.
 fn save_entries(drawings: List(#(String, String)), index: Int) -> Nil {
   case drawings {
     [] -> Nil
@@ -49,7 +47,7 @@ fn save_entries(drawings: List(#(String, String)), index: Int) -> Nil {
   }
 }
 
-// Load drawings from localStorage or use defaults.
+// Restore saved drawings, or load examples by default.
 pub fn load_drawings(
   defaults: List(#(String, String)),
 ) -> List(#(String, String)) {
@@ -69,7 +67,7 @@ pub fn load_drawings(
   }
 }
 
-// Load the saved drawings recursively.
+// Load each drawing from localStorage.
 fn load_entries(index: Int, count: Int) -> List(#(String, String)) {
   case index >= count {
     True -> []
@@ -89,14 +87,14 @@ fn load_entries(index: Int, count: Int) -> List(#(String, String)) {
   }
 }
 
-// ── Current Drawing ──────────────────────────────────────────────────────────
+// ── Current Drawing ────────────────────────────────────
 
-// Save the selected drawing name.
+// Save the currently selected drawing.
 pub fn save_current(name: String) -> Nil {
   storage_set(prefix <> "current", name)
 }
 
-// Restore the previously selected drawing name.
+// Restore the previously selected drawing.
 pub fn load_current() -> String {
   case storage_get(prefix <> "current") {
     Ok(name) -> name

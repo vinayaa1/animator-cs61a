@@ -20,16 +20,12 @@ import parser
 import render
 import shape.{type Path}
 
-/// Your app's public address, once deployed.
 pub const public_url = ""
 
-/// Set to True to include your app in the gallery.
 pub const include_app_in_gallery = False
 
-/// Link to your video.
 pub const video_url = ""
 
-/// Set to True to include your video in the gallery.
 pub const include_video_in_gallery = False
 
 const default_code =
@@ -59,18 +55,16 @@ pub type Msg {
   ResetAnimation
 }
 
-// ── Init ───────────────────────────────────────────────
+// ── Initialization ────────────────────────────────────
 
 pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
   let drawings = data.load_drawings(examples.all)
 
-  let current = case data.load_current() {
-    "" -> first_name(drawings)
-    saved ->
-      case find_source(drawings, saved) {
-        Ok(_) -> saved
-        Error(_) -> first_name(drawings)
-      }
+  let saved = data.load_current()
+
+  let current = case find_source(drawings, saved) {
+    Ok(_) -> saved
+    Error(_) -> first_name(drawings)
   }
 
   let source = case find_source(drawings, current) {
@@ -198,7 +192,11 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     SetSpeed(value) -> {
       let speed = case float.parse(value) {
         Ok(n) -> n
-        Error(_) -> model.speed
+        Error(_) ->
+          case int.parse(value) {
+            Ok(n) -> int.to_float(n)
+            Error(_) -> model.speed
+          }
       }
 
       render.set_speed(speed)
@@ -216,8 +214,12 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
 
             Ok(source) -> {
               data.save_current(name)
+              let output = evaluate(source, model.shape_slider)
 
-              #(Model(..model, current: name), editor.mount(source, SetCode))
+              #(
+                Model(..model, current: name, source: source, output: output),
+                editor.mount(source, SetCode),
+              )
             }
           }
       }
@@ -243,8 +245,16 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
           data.save_drawings(drawings)
           data.save_current(name)
 
+          let output = evaluate(source, model.shape_slider)
+
           #(
-            Model(..model, current: name, drawings: drawings),
+            Model(
+              ..model,
+              current: name,
+              source: source,
+              drawings: drawings,
+              output: output,
+            ),
             editor.mount(source, SetCode),
           )
         }
@@ -346,7 +356,13 @@ fn view_drawing_select(model: Model) -> Element(Msg) {
       list.map(model.drawings, fn(entry) {
         let #(name, _) = entry
 
-        html.option([attr.value(name)], name)
+        html.option(
+          [
+            attr.value(name),
+            attr.selected(name == model.current),
+          ],
+          name,
+        )
       })
         |> list.append([
           html.option([attr.value("")], "+ New drawing"),
